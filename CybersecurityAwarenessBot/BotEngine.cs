@@ -5,32 +5,21 @@ using System.Text.RegularExpressions;
 namespace CybersecurityAwarenessBot
 {
     public delegate string SentimentModifier(string botResponse);
-
-    public enum BotState
-    {
-        Normal,
-        QuizActive
-    }
+    public enum BotState { Normal, QuizActive }
 
     public class BotEngine
     {
         public string UserName { get; set; } = "User";
         private BotState _currentState = BotState.Normal;
+        public bool IsQuizActive => _currentState == BotState.QuizActive;
 
-        // Modules
         private DatabaseHelper _dbHelper;
         private Random _randomizer;
-
-        // Memory & Logs
-        private string _favoriteTopic = string.Empty;
         private List<string> _activityLog;
 
-        // Quiz State
         private int _quizScore = 0;
         private int _currentQuestionIndex = 0;
         private List<QuizQuestion> _quizQuestions;
-
-        // Part 2 Basic Responses
         private readonly Dictionary<string, List<string>> _topicResponses;
 
         public BotEngine()
@@ -42,7 +31,6 @@ namespace CybersecurityAwarenessBot
 
             LogActivity("Application started. BotEngine initialized.");
 
-            // Standard responses for generic keywords
             _topicResponses = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
             {
                 { "password", new List<string> { "Make sure to use strong, unique passwords for each account.", "Consider using a password manager." } },
@@ -50,149 +38,85 @@ namespace CybersecurityAwarenessBot
                 { "scam", new List<string> { "If an online deal looks too good to be true, it probably is.", "Never share your OTP with anyone." } },
                 { "privacy", new List<string> { "Check your social media settings to ensure your profile is private.", "Avoid sharing your real-time location." } }
             };
-
             LoadQuizQuestions();
         }
 
         private void LogActivity(string action)
         {
-            if (_activityLog.Count >= 10) _activityLog.RemoveAt(0); // Keep max 10 logs
+            if (_activityLog.Count >= 10) _activityLog.RemoveAt(0);
             _activityLog.Add($"[{DateTime.Now:HH:mm}] {action}");
         }
 
+        public List<UserTaskModel> GetUserTasks() => _dbHelper.GetTaskModels();
+        public void CompleteTask(int id) { _dbHelper.MarkTaskCompleteById(id); LogActivity($"Marked Task #{id} as complete via Dashboard."); }
+        public void DeleteTask(int id) { _dbHelper.DeleteTaskById(id); LogActivity($"Deleted Task #{id} via Dashboard."); }
+
+        public QuizQuestion? GetCurrentQuizQuestion() => IsQuizActive && _currentQuestionIndex < _quizQuestions.Count ? _quizQuestions[_currentQuestionIndex] : null;
+
         public string ProcessInput(string? userInput)
         {
-            if (string.IsNullOrWhiteSpace(userInput)) return "I didn't quite catch that.";
-            string normalizedInput = userInput.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(userInput) && !IsQuizActive) return "I didn't quite catch that.";
+            string normalizedInput = userInput?.Trim() ?? "";
 
-            // 1. Handle Active Quiz State
-            if (_currentState == BotState.QuizActive)
-            {
-                return HandleQuizInput(normalizedInput);
-            }
+            if (_currentState == BotState.QuizActive) return HandleQuizInput(normalizedInput);
 
-            // 2. Task 4: Activity Log
-            if (Regex.IsMatch(normalizedInput, @"\b(activity log|what have you done)\b"))
+            string lowerInput = normalizedInput.ToLower();
+
+            if (Regex.IsMatch(lowerInput, @"\b(activity log|what have you done)\b"))
             {
                 LogActivity("User requested to view the activity log.");
                 return GetActivityLog();
             }
 
-            // 3. Task 2: Start Quiz Command
-            if (Regex.IsMatch(normalizedInput, @"\b(start quiz|play game|take quiz)\b"))
+            if (Regex.IsMatch(lowerInput, @"\b(start quiz|play game|take quiz)\b"))
             {
                 _currentState = BotState.QuizActive;
                 _quizScore = 0;
                 _currentQuestionIndex = 0;
                 LogActivity("Cybersecurity Quiz started.");
-                return $"Awesome! Let's test your knowledge. I'll ask you 11 questions.\n\nQuestion 1: {_quizQuestions[0].QuestionText}";
+                return $"Awesome! Let's test your knowledge. I'll ask you {_quizQuestions.Count} questions.\n\nQuestion 1: {_quizQuestions[0].QuestionText}";
             }
 
-            // 4. SMART NLP: Adding a task and detecting "in X days"
-            Match addTaskMatch = Regex.Match(normalizedInput, @"(?:add task|set reminder|remind me)(?: in (\d+) days?)?(?: to)? (.+)");
+            Match addTaskMatch = Regex.Match(lowerInput, @"(?:add task|set reminder|remind me)(?: in (\d+) days?)?(?: to)? (.+)");
             if (addTaskMatch.Success)
             {
                 string daysString = addTaskMatch.Groups[1].Value;
                 string taskExtract = addTaskMatch.Groups[2].Value.Trim();
+                if (taskExtract.Length > 0) taskExtract = char.ToUpper(taskExtract[0]) + taskExtract.Substring(1);
 
-                // Capitalize the first letter so it looks neat
-                if (taskExtract.Length > 0)
-                    taskExtract = char.ToUpper(taskExtract[0]) + taskExtract.Substring(1);
-
-                // If you specified a number of days, calculate it. Otherwise, default to 1 day.
                 int daysToAdd = string.IsNullOrEmpty(daysString) ? 1 : int.Parse(daysString);
                 DateTime reminderDate = DateTime.Now.AddDays(daysToAdd);
 
                 _dbHelper.AddUserTask(taskExtract, "Task added via smart chat.", reminderDate);
-                LogActivity($"Task added: '{taskExtract}' (Reminder set for {reminderDate:MMM dd})");
-
-                return $"Got it! I've added '{taskExtract}' and set your reminder for {daysToAdd} day(s) from now ({reminderDate.ToShortDateString()}).";
+                LogActivity($"Task added: '{taskExtract}'");
+                return $"Got it! I've added '{taskExtract}' and set your reminder for {reminderDate.ToShortDateString()}.";
             }
 
-            // 5. SMART NLP: Viewing your reminders
-            if (Regex.IsMatch(normalizedInput, @"\b(show|tell|what|view).*?(tasks|reminders)\b"))
+            // The secret code that triggers the UI Dashboard
+            if (Regex.IsMatch(lowerInput, @"\b(show|tell|what|view).*?(tasks|reminders)\b"))
             {
-                LogActivity("User requested to view their task list.");
-                var tasks = _dbHelper.GetAllTasks();
-                if (tasks.Count == 0) return "You currently have no reminders saved.";
-
-                string response = "Here are your reminders, in the order you gave them to me:\n\n";
-                for (int i = 0; i < tasks.Count; i++)
-                {
-                    response += $"{i + 1}. {tasks[i]}\n";
-                }
-                return response;
+                LogActivity("User opened the Interactive Task Dashboard.");
+                return "[DISPLAY_TASKS]";
             }
 
-            // 6. SMART NLP: Marking a task as completed (Handles Numbers and Words)
-            Match numberMatch = Regex.Match(normalizedInput, @"(?:mark|complete|finish) (?:task|reminder )?(\d+)");
-
-            if (numberMatch.Success)
-            {
-                // The user typed a number! Extract the digit (e.g., "1")
-                int listNumber = int.Parse(numberMatch.Groups[1].Value);
-                bool success = _dbHelper.MarkTaskCompleteByListNumber(listNumber);
-
-                if (success)
-                {
-                    LogActivity($"Marked item #{listNumber} as completed.");
-                    return $"Awesome! I've officially checked item #{listNumber} off your list.";
-                }
-                else
-                {
-                    return $"I couldn't check off item #{listNumber}. Are you sure that number is on your list and is currently [Pending]?";
-                }
-            }
-            else if (normalizedInput.StartsWith("mark ") || normalizedInput.StartsWith("i finished ") || normalizedInput.StartsWith("i completed "))
-            {
-                // The user typed the name of the task instead of a number
-                string taskName = normalizedInput
-                    .Replace("mark ", "")
-                    .Replace("i finished ", "")
-                    .Replace("i completed ", "")
-                    .Replace(" as done", "")
-                    .Replace(" as complete", "")
-                    .Replace(" as completed", "")
-                    .Replace(" task", "")
-                    .Replace(" reminder", "")
-                    .Trim();
-
-                bool success = _dbHelper.MarkTaskAsCompleted(taskName);
-
-                if (success)
-                {
-                    LogActivity($"Marked task as completed: '{taskName}'");
-                    return $"Great job! I've officially marked '{taskName}' as [Completed] in your database.";
-                }
-                else
-                {
-                    return $"I couldn't find an unfinished task matching '{taskName}'. Try asking to 'show tasks' and make sure you spell it right, or just say 'mark 1 as complete'.";
-                }
-            }
-
-            // 7. Part 2 Logic - Sentiment & Keyword Fallback
-            SentimentModifier? sentimentModifier = DetectSentiment(normalizedInput);
+            SentimentModifier? sentimentModifier = DetectSentiment(lowerInput);
             foreach (var topic in _topicResponses.Keys)
             {
-                if (normalizedInput.Contains(topic))
+                if (lowerInput.Contains(topic))
                 {
                     string baseResponse = _topicResponses[topic][_randomizer.Next(_topicResponses[topic].Count)];
-                    LogActivity($"Provided information about '{topic}'.");
+                    LogActivity($"Provided info about '{topic}'.");
                     return sentimentModifier != null ? sentimentModifier(baseResponse) : baseResponse;
                 }
             }
-
-            return "I'm not sure I understand. You can ask me to 'start quiz', 'remind me to [action]', 'show tasks', 'show activity log', or ask about scams/passwords.";
+            return "I'm not sure I understand. You can ask me to 'start quiz', 'remind me to [action]', 'show tasks', or ask about scams.";
         }
 
         private string GetActivityLog()
         {
             if (_activityLog.Count == 0) return "I haven't done much yet today!";
             string logString = "Here's a summary of recent actions:\n";
-            for (int i = 0; i < _activityLog.Count; i++)
-            {
-                logString += $"{i + 1}. {_activityLog[i]}\n";
-            }
+            for (int i = 0; i < _activityLog.Count; i++) logString += $"{i + 1}. {_activityLog[i]}\n";
             return logString;
         }
 
@@ -200,28 +124,26 @@ namespace CybersecurityAwarenessBot
         {
             _quizQuestions = new List<QuizQuestion>
             {
-                new QuizQuestion("What should you do if you receive an unexpected email asking for your password?\nA) Reply with it\nB) Delete it\nC) Report as phishing\nD) Ignore it", "c", "Reporting phishing emails helps prevent scams and alerts security teams."),
-                new QuizQuestion("True or False: Using 'Password123' is a secure choice.", "false", "Weak passwords are easily cracked. Always use a mix of characters, numbers, and symbols."),
-                new QuizQuestion("What does 2FA stand for?\nA) Two-File Access\nB) Two-Factor Authentication\nC) To Find Accounts", "b", "2FA adds an extra layer of security beyond just your password."),
-                new QuizQuestion("True or False: Public Wi-Fi is safe for online banking.", "false", "Public networks can be easily intercepted by hackers. Avoid sensitive transactions on them."),
-                new QuizQuestion("What type of malware locks your files until you pay a fee?\nA) Spyware\nB) Adware\nC) Ransomware", "c", "Ransomware encrypts your data and demands money for the decryption key."),
-                new QuizQuestion("Why should you update your phone and PC software regularly?\nA) To get new emojis\nB) To patch security vulnerabilities\nC) To use more battery", "b", "Updates often contain critical patches for newly discovered security flaws."),
-                new QuizQuestion("What is a VPN primarily used for?\nA) Speeding up the internet\nB) Encrypting your internet connection\nC) Blocking ads", "b", "A Virtual Private Network (VPN) encrypts your data, keeping your browsing private."),
-                new QuizQuestion("What is the main purpose of a firewall?\nA) To block unauthorized network access\nB) To cool down your CPU\nC) To store passwords", "a", "Firewalls act as a barrier between your internal network and external threats."),
-                new QuizQuestion("True or False: You should use the same password for all your accounts so you don't forget it.", "false", "If one account is breached, all your accounts are compromised. Always use unique passwords."),
-                new QuizQuestion("What is it called when a scammer manipulates you into giving up confidential info?\nA) Social Engineering\nB) Hacking\nC) Brute Forcing", "a", "Social engineering relies on human error and psychological manipulation rather than technical exploits."),
-                new QuizQuestion("If a website URL starts with HTTPS, what does the 'S' stand for?\nA) System\nB) Secure\nC) Server", "b", "HTTPS means the connection between your browser and the website is encrypted and secure.")
+                new QuizQuestion("What should you do if you receive an unexpected email asking for your password?", new List<string> { "Reply with it", "Delete it", "Report as phishing", "Ignore it" }, "Report as phishing", "Reporting phishing emails helps prevent scams and alerts security teams."),
+                new QuizQuestion("True or False: Using 'Password123' is a secure choice.", new List<string> { "True", "False" }, "False", "Weak passwords are easily cracked. Always use a mix of characters, numbers, and symbols."),
+                new QuizQuestion("What does 2FA stand for?", new List<string> { "Two-File Access", "Two-Factor Authentication", "To Find Accounts" }, "Two-Factor Authentication", "2FA adds an extra layer of security beyond just your password."),
+                new QuizQuestion("True or False: Public Wi-Fi is safe for online banking.", new List<string> { "True", "False" }, "False", "Public networks can be easily intercepted by hackers. Avoid sensitive transactions on them."),
+                new QuizQuestion("What type of malware locks your files until you pay a fee?", new List<string> { "Spyware", "Adware", "Ransomware" }, "Ransomware", "Ransomware encrypts your data and demands money for the decryption key."),
+                new QuizQuestion("Why should you update your phone and PC software regularly?", new List<string> { "To get new emojis", "To patch security vulnerabilities", "To use more battery" }, "To patch security vulnerabilities", "Updates often contain critical patches for newly discovered security flaws."),
+                new QuizQuestion("What is a VPN primarily used for?", new List<string> { "Speeding up the internet", "Encrypting your internet connection", "Blocking ads" }, "Encrypting your internet connection", "A Virtual Private Network (VPN) encrypts your data, keeping your browsing private."),
+                new QuizQuestion("What is the main purpose of a firewall?", new List<string> { "To block unauthorized network access", "To cool down your CPU", "To store passwords" }, "To block unauthorized network access", "Firewalls act as a barrier between your internal network and external threats."),
+                new QuizQuestion("True or False: You should use the same password for all your accounts so you don't forget it.", new List<string> { "True", "False" }, "False", "If one account is breached, all your accounts are compromised. Always use unique passwords."),
+                new QuizQuestion("What is it called when an attacker manipulates you into giving up confidential info?", new List<string> { "Social Engineering", "Hacking", "Brute Forcing" }, "Social Engineering", "Social engineering relies on human interaction and psychological manipulation rather than pure technical exploits."),
+                new QuizQuestion("If a website URL starts with HTTPS, what does the 'S' stand for?", new List<string> { "System", "Secure", "Server" }, "Secure", "HTTPS means the connection between your browser and the website is encrypted and secure.")
             };
         }
 
-        private string HandleQuizInput(string input)
+        private string HandleQuizInput(string selectedAnswer)
         {
             var currentQuestion = _quizQuestions[_currentQuestionIndex];
+            bool isCorrect = selectedAnswer.Equals(currentQuestion.CorrectAnswer, StringComparison.OrdinalIgnoreCase);
 
-            // Allow the user to type just the letter (e.g., "c") or the word ("false")
-            bool isCorrect = input == currentQuestion.CorrectAnswer.ToLower();
-
-            string feedback = isCorrect ? "Correct!" : "Incorrect.";
+            string feedback = isCorrect ? "✅ Correct!" : $"❌ Incorrect. The right answer was: {currentQuestion.CorrectAnswer}.";
             feedback += $" {currentQuestion.Explanation}\n\n";
 
             if (isCorrect) _quizScore++;
@@ -230,33 +152,25 @@ namespace CybersecurityAwarenessBot
             if (_currentQuestionIndex >= _quizQuestions.Count)
             {
                 _currentState = BotState.Normal;
-                LogActivity($"Quiz completed. Final Score: {_quizScore}/{_quizQuestions.Count}");
-                string rank = _quizScore > 8 ? "You're a cybersecurity pro!" : "Keep learning to stay safe online!";
-                return feedback + $"--- Quiz Finished! ---\nYou scored {_quizScore} out of {_quizQuestions.Count}. {rank}";
+                return feedback + $"--- Quiz Finished! ---\nYou scored {_quizScore} out of {_quizQuestions.Count}.";
             }
-
             return feedback + $"Question {_currentQuestionIndex + 1}: {_quizQuestions[_currentQuestionIndex].QuestionText}";
         }
 
-        private SentimentModifier? DetectSentiment(string input)
-        {
-            if (input.Contains("worried") || input.Contains("anxious"))
-                return (resp) => "It's completely understandable to feel that way. Let me share a tip to help you stay safe:\n\n" + resp;
-            if (input.Contains("frustrated") || input.Contains("confused"))
-                return (resp) => "Cybersecurity can feel overwhelming, but taking it one step at a time helps. Here is a simple tip:\n\n" + resp;
-            return null;
-        }
+        private SentimentModifier? DetectSentiment(string input) { return null; }
     }
 
     public class QuizQuestion
     {
         public string QuestionText { get; set; }
+        public List<string> Options { get; set; }
         public string CorrectAnswer { get; set; }
         public string Explanation { get; set; }
 
-        public QuizQuestion(string question, string answer, string explanation)
+        public QuizQuestion(string question, List<string> options, string answer, string explanation)
         {
             QuestionText = question;
+            Options = options;
             CorrectAnswer = answer;
             Explanation = explanation;
         }

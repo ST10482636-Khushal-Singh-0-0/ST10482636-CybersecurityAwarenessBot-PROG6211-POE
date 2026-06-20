@@ -4,9 +4,17 @@ using MySql.Data.MySqlClient;
 
 namespace CybersecurityAwarenessBot
 {
+    // A clean model to hold task data for the UI
+    public class UserTaskModel
+    {
+        public int TaskId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public bool IsCompleted { get; set; }
+        public DateTime? ReminderDate { get; set; }
+    }
+
     public class DatabaseHelper
     {
-        // IMPORTANT: Ensure this matches your MySQL setup. If you have a password, put it between the Pwd= and the semicolon.
         private readonly string _connectionString = "Server=localhost;Database=CybersecurityBotDB;Uid=root;Pwd=;";
 
         public void AddUserTask(string title, string description, DateTime? reminderDate)
@@ -17,126 +25,88 @@ namespace CybersecurityAwarenessBot
                 {
                     conn.Open();
                     string query = "INSERT INTO UserTasks (Title, Description, ReminderDate) VALUES (@Title, @Description, @ReminderDate)";
-
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@Title", title);
                         cmd.Parameters.AddWithValue("@Description", description);
                         cmd.Parameters.AddWithValue("@ReminderDate", reminderDate.HasValue ? (object)reminderDate.Value : DBNull.Value);
-
                         cmd.ExecuteNonQuery();
                     }
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Database Error: {ex.Message}");
-                }
+                catch (Exception ex) { Console.WriteLine($"DB Error: {ex.Message}"); }
             }
         }
 
-        public List<string> GetAllTasks()
+        // Fetches tasks as structured objects for the interactive dashboard
+        public List<UserTaskModel> GetTaskModels()
         {
-            List<string> tasks = new List<string>();
-
+            List<UserTaskModel> tasks = new List<UserTaskModel>();
             using (MySqlConnection conn = new MySqlConnection(_connectionString))
             {
                 try
                 {
                     conn.Open();
-                    // ORDER BY TaskId ASC ensures they always appear in the exact order you added them
-                    string query = "SELECT Title, ReminderDate, IsCompleted FROM UserTasks ORDER BY TaskId ASC";
-
+                    string query = "SELECT TaskId, Title, ReminderDate, IsCompleted FROM UserTasks ORDER BY TaskId ASC";
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     using (MySqlDataReader reader = cmd.ExecuteReader())
                     {
                         while (reader.Read())
                         {
-                            string title = reader["Title"].ToString() ?? "Unknown Task";
-                            string status = Convert.ToBoolean(reader["IsCompleted"]) ? "[Completed]" : "[Pending]";
-                            string taskInfo = $"{status} {title}";
-
-                            if (reader["ReminderDate"] != DBNull.Value)
+                            tasks.Add(new UserTaskModel
                             {
-                                DateTime reminder = Convert.ToDateTime(reader["ReminderDate"]);
-                                taskInfo += $" (Reminder: {reminder.ToShortDateString()})";
-                            }
-                            tasks.Add(taskInfo);
+                                TaskId = Convert.ToInt32(reader["TaskId"]),
+                                Title = reader["Title"].ToString() ?? "Unknown",
+                                IsCompleted = Convert.ToBoolean(reader["IsCompleted"]),
+                                ReminderDate = reader["ReminderDate"] != DBNull.Value ? Convert.ToDateTime(reader["ReminderDate"]) : (DateTime?)null
+                            });
                         }
                     }
                 }
-                catch (Exception ex)
-                {
-                    tasks.Add($"MySQL Error: {ex.Message}");
-                }
+                catch (Exception ex) { Console.WriteLine($"DB Error: {ex.Message}"); }
             }
             return tasks;
         }
 
-        public bool MarkTaskAsCompleted(string searchTitle)
+        // Direct ID complete for the UI Buttons
+        public void MarkTaskCompleteById(int taskId)
         {
             using (MySqlConnection conn = new MySqlConnection(_connectionString))
             {
                 try
                 {
                     conn.Open();
-                    string query = "UPDATE UserTasks SET IsCompleted = TRUE WHERE Title LIKE @SearchTitle AND IsCompleted = FALSE LIMIT 1";
-
+                    string query = "UPDATE UserTasks SET IsCompleted = TRUE WHERE TaskId = @TaskId";
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     {
-                        cmd.Parameters.AddWithValue("@SearchTitle", "%" + searchTitle + "%");
-                        int rowsAffected = cmd.ExecuteNonQuery();
-                        return rowsAffected > 0;
+                        cmd.Parameters.AddWithValue("@TaskId", taskId);
+                        cmd.ExecuteNonQuery();
                     }
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Database Error: {ex.Message}");
-                    return false;
-                }
+                catch (Exception ex) { Console.WriteLine($"DB Error: {ex.Message}"); }
             }
         }
 
-        public bool MarkTaskCompleteByListNumber(int listNumber)
+        // Delete a task from the database
+        public void DeleteTaskById(int taskId)
         {
             using (MySqlConnection conn = new MySqlConnection(_connectionString))
             {
                 try
                 {
                     conn.Open();
-
-                    // 1. Find the internal Database ID for the item at that position in your list
-                    int targetTaskId = -1;
-                    string selectQuery = "SELECT TaskId FROM UserTasks ORDER BY TaskId ASC LIMIT 1 OFFSET @Offset";
-
-                    using (MySqlCommand selectCmd = new MySqlCommand(selectQuery, conn))
+                    string query = "DELETE FROM UserTasks WHERE TaskId = @TaskId";
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     {
-                        selectCmd.Parameters.AddWithValue("@Offset", listNumber - 1);
-                        object result = selectCmd.ExecuteScalar();
-                        if (result != null)
-                        {
-                            targetTaskId = Convert.ToInt32(result);
-                        }
+                        cmd.Parameters.AddWithValue("@TaskId", taskId);
+                        cmd.ExecuteNonQuery();
                     }
-
-                    // 2. If the item exists, update its status
-                    if (targetTaskId != -1)
-                    {
-                        string updateQuery = "UPDATE UserTasks SET IsCompleted = TRUE WHERE TaskId = @TaskId AND IsCompleted = FALSE";
-                        using (MySqlCommand updateCmd = new MySqlCommand(updateQuery, conn))
-                        {
-                            updateCmd.Parameters.AddWithValue("@TaskId", targetTaskId);
-                            int rowsAffected = updateCmd.ExecuteNonQuery();
-                            return rowsAffected > 0;
-                        }
-                    }
-                    return false;
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Database Error: {ex.Message}");
-                    return false;
-                }
+                catch (Exception ex) { Console.WriteLine($"DB Error: {ex.Message}"); }
             }
         }
+
+        public List<string> GetAllTasks() { return new List<string>(); }
+        public bool MarkTaskAsCompleted(string searchTitle) { return false; }
+        public bool MarkTaskCompleteByListNumber(int listNumber) { return false; }
     }
 }

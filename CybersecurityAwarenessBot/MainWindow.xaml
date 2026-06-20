@@ -1,24 +1,82 @@
 ﻿<Window x:Class="CybersecurityAwarenessBot.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Mzansi's Cybersecurity Awareness Assistant" Height="600" Width="800" Background="#1E1E1E">
+        Title="Mzansi's Cybersecurity Awareness Assistant" Height="700" Width="850" Background="#1E1E1E">
+
+    <Window.Resources>
+        <Style x:Key="InteractiveButton" TargetType="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="12,6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Opacity" Value="0.9"/>
+                    <Setter Property="RenderTransform">
+                        <Setter.Value>
+                            <ScaleTransform ScaleX="1.02" ScaleY="1.02"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
     <Grid Margin="10">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <ScrollViewer x:Name="ChatScroll" Grid.Row="0" Margin="0,0,0,10" Background="#252526">
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+            <Button x:Name="BtnStartQuiz" Style="{StaticResource InteractiveButton}" Content="🎮 Start Quiz" Width="120" Height="35" Margin="0,0,10,0" Background="#FF4CAF50" Click="QuickAction_Click"/>
+            <Button x:Name="BtnAddTask" Style="{StaticResource InteractiveButton}" Content="➕ Add Task" Width="120" Height="35" Margin="0,0,10,0" Background="#FF9C27B0" Click="BtnAddTask_Click"/>
+            <Button x:Name="BtnShowTasks" Style="{StaticResource InteractiveButton}" Content="📋 Show Tasks" Width="120" Height="35" Margin="0,0,10,0" Background="#FF2196F3" Click="QuickAction_Click"/>
+            <Button x:Name="BtnActivityLog" Style="{StaticResource InteractiveButton}" Content="📜 Activity Log" Width="120" Height="35" Margin="0,0,10,0" Background="#FFFF9800" Click="QuickAction_Click"/>
+            <Button x:Name="BtnClearChat" Style="{StaticResource InteractiveButton}" Content="🗑️ Clear Chat" Width="120" Height="35" Background="#FFF44336" Click="BtnClearChat_Click"/>
+        </StackPanel>
+
+        <ScrollViewer x:Name="ChatScroll" Grid.Row="1" Margin="0,0,0,10" Background="#252526">
             <TextBlock x:Name="ChatOutput" Foreground="#D4D4D4" FontFamily="Consolas" FontSize="14" TextWrapping="Wrap" Padding="10"/>
         </ScrollViewer>
 
-        <Grid Grid.Row="1">
+        <Grid x:Name="TaskDashboardOverlay" Grid.Row="1" Background="#252526" Visibility="Collapsed" Margin="0,0,0,10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid Background="#333333" Margin="0,0,0,10">
+                <TextBlock Text="📋 Interactive Task Manager" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center" Margin="15,10"/>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,15,0">
+                    <Button Content="➕ Add Task" Background="#FF9C27B0" Margin="0,0,10,0" Style="{StaticResource InteractiveButton}" Click="BtnAddTask_Click"/>
+                    <Button Content="❌ Close" Background="#FFF44336" Style="{StaticResource InteractiveButton}" Click="CloseTaskDashboard_Click"/>
+                </StackPanel>
+            </Grid>
+            <ScrollViewer Grid.Row="1">
+                <StackPanel x:Name="InteractiveTaskList" Margin="15"/>
+            </ScrollViewer>
+        </Grid>
+
+        <WrapPanel x:Name="QuizAnswersPanel" Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10" Visibility="Collapsed"/>
+
+        <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBox x:Name="UserInputBox" Grid.Column="0" Height="40" FontSize="16" Padding="5" VerticalContentAlignment="Center" KeyDown="UserInputBox_KeyDown"/>
-            <Button x:Name="SendButton" Grid.Column="1" Content="Send" Width="100" Height="40" Margin="10,0,0,0" FontSize="16" Background="#FF0027FF" Foreground="White" Click="SendButton_Click" FontFamily="Arial Black"/>
+            <Button x:Name="SendButton" Style="{StaticResource InteractiveButton}" Grid.Column="1" Content="Send" Width="100" Height="40" Margin="10,0,0,0" FontSize="16" Background="#FF0027FF" Click="SendButton_Click" FontFamily="Arial Black"/>
         </Grid>
     </Grid>
 </Window>
