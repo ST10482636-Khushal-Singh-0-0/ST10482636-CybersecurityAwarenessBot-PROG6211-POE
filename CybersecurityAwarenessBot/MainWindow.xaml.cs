@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Speech.Synthesis;
 
 namespace CybersecurityAwarenessBot
 {
@@ -11,13 +12,40 @@ namespace CybersecurityAwarenessBot
     {
         private BotEngine _bot;
         private bool _isAwaitingName = true;
+        private SpeechSynthesizer _synth;
 
         public MainWindow()
         {
             InitializeComponent();
             _bot = new BotEngine();
+
+            // Initialize the Voice Synthesizer
+            _synth = new SpeechSynthesizer();
+            _synth.SetOutputToDefaultAudioDevice();
+
             DisplayHeader();
+
+            // Play your custom WAV file greeting
+            PlayVoiceGreeting();
+
             AppendMessage("System", "Welcome to your personalized Cybersecurity Awareness Bot! Please enter your name:");
+            // NOTE: SpeakText is intentionally left out here so it doesn't talk over your custom .wav file!
+        }
+
+        private void SpeakText(string text)
+        {
+            try
+            {
+                // Clean up emojis and symbols so the bot doesn't literally read them out loud
+                string cleanText = text.Replace("✅", "").Replace("❌", "").Replace("🎮", "").Replace("📋", "").Replace("📜", "").Replace("🗑️", "").Replace("➕", "").Replace("*", "");
+
+                _synth.SpeakAsyncCancelAll(); // Stop talking if the user interrupts with a new message
+                _synth.SpeakAsync(cleanText);
+            }
+            catch
+            {
+                // Fails silently if the computer has no speakers plugged in
+            }
         }
 
         private void DisplayHeader()
@@ -37,6 +65,17 @@ namespace CybersecurityAwarenessBot
             ChatOutput.Text += guardianArt + "\n===============================================================================\n\n";
         }
 
+        private void PlayVoiceGreeting()
+        {
+            try
+            {
+                SoundPlayer player = new SoundPlayer("greeting.wav");
+                player.LoadAsync();
+                player.Play();
+            }
+            catch (Exception) { /* Fails silently if wav is missing */ }
+        }
+
         private void SendButton_Click(object sender, RoutedEventArgs e) => ProcessInput(UserInputBox.Text);
 
         private void UserInputBox_KeyDown(object sender, KeyEventArgs e)
@@ -53,19 +92,18 @@ namespace CybersecurityAwarenessBot
             }
         }
 
-        // Logic for the Add Task Button
         private void BtnAddTask_Click(object sender, RoutedEventArgs e)
         {
-            // Close the task manager so the user can see the bot's prompt
             TaskDashboardOverlay.Visibility = Visibility.Collapsed;
             ChatScroll.Visibility = Visibility.Visible;
 
-            // Pre-fill the input box
             UserInputBox.Text = "remind me to ";
             UserInputBox.Focus();
             UserInputBox.CaretIndex = UserInputBox.Text.Length;
 
-            AppendMessage("System", "What would you like me to remind you about?");
+            string msg = "What would you like me to remind you about?";
+            AppendMessage("System", msg);
+            SpeakText(msg);
             ChatScroll.ScrollToEnd();
         }
 
@@ -73,7 +111,10 @@ namespace CybersecurityAwarenessBot
         {
             ChatOutput.Text = string.Empty;
             DisplayHeader();
-            AppendMessage("System", "Chat history cleared.");
+
+            string msg = "Chat history cleared.";
+            AppendMessage("System", msg);
+            SpeakText(msg);
         }
 
         private void ProcessInput(string input)
@@ -90,7 +131,10 @@ namespace CybersecurityAwarenessBot
             {
                 _bot.UserName = input.Trim();
                 _isAwaitingName = false;
-                AppendMessage("Guardian", $"Hello, {_bot.UserName}! I am ready to help.");
+
+                string greeting = $"Hello, {_bot.UserName}! I am ready to help.";
+                AppendMessage("Guardian", greeting);
+                SpeakText(greeting);
             }
             else
             {
@@ -99,10 +143,12 @@ namespace CybersecurityAwarenessBot
                 if (response == "[DISPLAY_TASKS]")
                 {
                     ShowInteractiveTasks();
+                    SpeakText("Opening your interactive task manager.");
                 }
                 else
                 {
                     AppendMessage("Guardian", response);
+                    SpeakText(response);
                 }
 
                 UpdateQuizInterface();
@@ -167,6 +213,7 @@ namespace CybersecurityAwarenessBot
                     btnComplete.Click += delegate {
                         _bot.CompleteTask(task.TaskId);
                         ShowInteractiveTasks();
+                        SpeakText("Task completed.");
                     };
                     btnPanel.Children.Add(btnComplete);
                 }
@@ -180,6 +227,7 @@ namespace CybersecurityAwarenessBot
                 btnDelete.Click += delegate {
                     _bot.DeleteTask(task.TaskId);
                     ShowInteractiveTasks();
+                    SpeakText("Task deleted.");
                 };
                 btnPanel.Children.Add(btnDelete);
 
@@ -193,7 +241,10 @@ namespace CybersecurityAwarenessBot
         {
             TaskDashboardOverlay.Visibility = Visibility.Collapsed;
             ChatScroll.Visibility = Visibility.Visible;
-            AppendMessage("Guardian", "Task Manager closed.");
+
+            string msg = "Task Manager closed.";
+            AppendMessage("Guardian", msg);
+            SpeakText(msg);
         }
 
         private void UpdateQuizInterface()
