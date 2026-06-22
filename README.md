@@ -1,32 +1,54 @@
 # Mzansi's Cybersecurity Awareness Assistant
 
-A desktop Graphical User Interface (GUI) application built with C# and Windows Presentation Foundation (WPF). This interactive chatbot is designed to educate users about common online threats—such as phishing, scams, and identity theft—with a specific focus on the South African digital landscape.
+A sleek, interactive desktop Graphical User Interface (GUI) application built with C# and Windows Presentation Foundation (WPF). This virtual assistant is designed to educate users about common online threats—such as phishing, scams, and identity theft—with a specific focus on the South African digital landscape.
 
-## Features
+Beyond just a chatbot, this application features a fully interactive task manager, dynamic text-to-speech capabilities, a retro-arcade aesthetic, and a built-in interactive cybersecurity quiz.
 
-* **Interactive GUI:** A clean, responsive chat interface built using WPF and XAML, featuring custom ASCII art branding and auto-scrolling chat history.
-* **Dynamic Keyword Recognition:** Identifies user queries related to specific topics (e.g., passwords, privacy, phishing) and serves randomized educational responses using generic C# collections (`Dictionary` and `List`).
-* **Sentiment Detection:** Analyzes the user's emotional tone (e.g., worried, frustrated, curious) and utilizes **C# Delegates** to dynamically alter the bot's responses to be more empathetic or encouraging.
-* **Conversation Memory:** Remembers the user's name and their favorite cybersecurity topics, recalling this information later in the conversation for a personalized experience.
-* **Audio Integration:** Automatically plays a localized voice greeting upon launch using `System.Media.SoundPlayer`.
-* **Seamless Flow:** Handles follow-up prompts like "tell me more" or "another tip" without losing track of the current conversation context.
+---
 
-## Technologies Used
+## ✨ Features
+
+* **Retro-Arcade Animated UI:** A custom-styled, highly responsive interface featuring neon accents, sliding message animations, and custom UI templates.
+* **"Jarvis" Text-to-Speech:** Automatically reads out bot responses using `System.Speech.Synthesis`, creating a highly immersive, hands-free assistant experience.
+* **Interactive Task Dashboard:** A built-in database-driven task manager. Add, complete, and delete cybersecurity-related tasks or reminders directly from a fluid UI overlay.
+* **Dynamic Cybersecurity Quiz:** Test your knowledge with a built-in multiple-choice quiz that temporarily locks standard input and dynamically generates clickable option buttons.
+* **Smart Natural Language Processing (NLP):** Uses Regular Expressions (Regex) to parse complex commands like *"remind me to update my firewall in 3 days"* and automatically formats them into database entries.
+* **Persistent Memory & Activity Logging:** Remembers your name and logs your interactions for the current session.
+
+---
+
+## 🛠️ Technologies Used
 
 * **Language:** C# 10.0+
-* **Framework:** .NET 8.0 / 10.0 (Windows)
+* **Framework:** .NET 8.0 / 10.0 (Windows Desktop Development)
 * **UI Technology:** Windows Presentation Foundation (WPF) / XAML
-* **IDE:** Visual Studio 2022
+* **Database:** MySQL (via `MySql.Data`)
+* **Audio/Speech:** `System.Speech` and `System.Media`
 
-## Project Structure
+---
 
-* `MainWindow.xaml`: Defines the visual layout, chat windows, text boxes, and buttons using XAML.
-* `MainWindow.xaml.cs`: The code-behind that links the user interface to the bot's logic and handles UI events (button clicks, keyboard presses, audio playback).
-* `BotEngine.cs`: The core logic engine. Handles string manipulation, keyword mapping, state memory, and sentiment analysis.
-* `greeting.wav`: The audio file used for the startup sequence.
+## ⚙️ Setup & Installation Instructions
 
-## How to Run Locally
+Follow these steps to get the application running on your local machine.
 
-1. **Clone the Repository:**
-   ```bash
-   git clone [https://github.com/yourusername/CybersecurityAwarenessBot.git](https://github.com/yourusername/CybersecurityAwarenessBot.git)
+### 1. Prerequisites
+* **Visual Studio 2022** with the ".NET desktop development" workload installed.
+* **MySQL Server** installed locally (you can use standalone MySQL or a package like XAMPP/WAMP).
+
+### 2. Database Configuration
+Before running the application, you must configure the local MySQL database to store your tasks and reminders.
+
+1. Open your MySQL command line or a tool like phpMyAdmin/MySQL Workbench.
+2. Execute the following SQL script to create the database and required table:
+   ```sql
+   CREATE DATABASE CybersecurityBotDB;
+   
+   USE CybersecurityBotDB;
+   
+   CREATE TABLE UserTasks (
+       TaskId INT AUTO_INCREMENT PRIMARY KEY,
+       Title VARCHAR(255) NOT NULL,
+       Description TEXT,
+       ReminderDate DATETIME NULL,
+       IsCompleted BOOLEAN DEFAULT FALSE
+   );
