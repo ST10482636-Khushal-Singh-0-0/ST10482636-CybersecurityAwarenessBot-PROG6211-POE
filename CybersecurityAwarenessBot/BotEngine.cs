@@ -11,8 +11,8 @@ namespace CybersecurityAwarenessBot
     public enum BotState { Normal, QuizActive }
 
 
-    /// The core logical brain of the application. Processes Natural Language Processing (NLP),
-    /// maintains conversation state, and handles the Quiz mechanics.
+    // The core logical brain of the application. Processes Natural Language Processing (NLP),
+    // maintains conversation state, and handles the Quiz mechanics.
 
     public class BotEngine
     {
@@ -53,7 +53,7 @@ namespace CybersecurityAwarenessBot
         }
 
 
-        /// Appends an action to the volatile memory log. Caps the log at 10 items to save memory.
+        // Appends an action to the volatile memory log. Caps the log at 10 items to save memory.
 
         private void LogActivity(string action)
         {
@@ -70,7 +70,7 @@ namespace CybersecurityAwarenessBot
         public QuizQuestion? GetCurrentQuizQuestion() => IsQuizActive && _currentQuestionIndex < _quizQuestions.Count ? _quizQuestions[_currentQuestionIndex] : null;
 
 
-        /// Primary NLP processing function. Takes raw user string, matches via Regex, and determines response.
+        // Primary NLP processing function. Takes raw user string, matches via Regex, and determines response.
 
         public string ProcessInput(string? userInput)
         {
@@ -145,7 +145,7 @@ namespace CybersecurityAwarenessBot
         }
 
 
-        /// Formats the volatile List memory into a readable string for the UI.
+        // Formats the volatile List memory into a readable string for the UI.
 
         private string GetActivityLog()
         {
@@ -156,7 +156,7 @@ namespace CybersecurityAwarenessBot
         }
 
 
-        /// Hardcoded population of the Quiz data structures.
+        // Hardcoded population of the Quiz data structures.
 
         private void LoadQuizQuestions()
         {
@@ -177,7 +177,7 @@ namespace CybersecurityAwarenessBot
         }
 
 
-        /// Evaluates answers against the current QuizQuestion object and tracks scores.
+        // Evaluates answers against the current QuizQuestion object and tracks scores.
 
         private string HandleQuizInput(string selectedAnswer)
         {
@@ -206,8 +206,8 @@ namespace CybersecurityAwarenessBot
     }
 
 
-    /// Data structure holding the properties of a single quiz question.
-    /// Lists are used for Options to allow the WPF UI to dynamically render a variable number of buttons.
+    // Data structure holding the properties of a single quiz question.
+    // Lists are used for Options to allow the WPF UI to dynamically render a variable number of buttons.
 
     public class QuizQuestion
     {

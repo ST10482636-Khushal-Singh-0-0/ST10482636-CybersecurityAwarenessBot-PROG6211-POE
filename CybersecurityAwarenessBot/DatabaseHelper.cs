@@ -18,9 +18,9 @@ namespace CybersecurityAwarenessBot
         // IMPORTANT: Add your MySQL password to Pwd= if you have one!
         private readonly string _connectionString = "Server=localhost;Database=CybersecurityBotDB;Uid=root;Pwd=;";
 
-        /// <summary>
-        /// Attempts to add a task. Returns TRUE if successful, FALSE if the DB connection fails.
-        /// </summary>
+
+        // Attempts to add a task. Returns TRUE if successful, FALSE if the DB connection fails.
+
         public bool AddUserTask(string title, string description, DateTime? reminderDate)
         {
             try
