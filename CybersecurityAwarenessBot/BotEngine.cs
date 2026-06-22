@@ -4,34 +4,46 @@ using System.Text.RegularExpressions;
 
 namespace CybersecurityAwarenessBot
 {
-    // Delegate to allow dynamic modification of strings (e.g., altering tone based on sentiment)
+
+    // A delegate used to modify the tone of the bot's response dynamically based on user sentiment.
+
     public delegate string SentimentModifier(string botResponse);
 
-    // Enum to strictly control application logic flow
+
+    // Defines the current operational mode of the Bot Engine.
+
     public enum BotState { Normal, QuizActive }
 
 
-    /// The core logical brain of the application. Processes Natural Language Processing (NLP),
-    /// maintains conversation state, and handles the Quiz mechanics.
+    // The core logical brain of the application. 
+    // Processes Natural Language Processing (NLP), maintains conversation state, and handles the Quiz mechanics.
 
     public class BotEngine
     {
+        // --- PUBLIC PROPERTIES ---
         public string UserName { get; set; } = "User";
-        private BotState _currentState = BotState.Normal;
+
+        // Exposes the current quiz state so the UI knows when to disable the text box and show buttons
         public bool IsQuizActive => _currentState == BotState.QuizActive;
 
+        // --- PRIVATE FIELDS ---
+        private BotState _currentState = BotState.Normal;
         private DatabaseHelper _dbHelper;
-        private Random _randomizer;
-        private List<string> _activityLog; // In-memory cache tracking user interaction
+        private Random _randomizer; // Used to pick random responses so the bot feels more human
+        private List<string> _activityLog; // In-memory volatile cache for the current session's actions
 
-        // Quiz State Tracking
+        // Quiz State Tracking Variables
         private int _quizScore = 0;
         private int _currentQuestionIndex = 0;
         private List<QuizQuestion> _quizQuestions;
 
-        // Knowledge Base: Dictionary mapping keywords to a list of possible responses
+        // Knowledge Base: Maps a keyword (e.g., "phishing") to a list of potential responses
         private readonly Dictionary<string, List<string>> _topicResponses;
 
+    
+        // Initializes a new instance of the BotEngine, setting up data structures,
+        // database connections, and the internal knowledge base.
+    
         public BotEngine()
         {
             _randomizer = new Random();
@@ -41,7 +53,7 @@ namespace CybersecurityAwarenessBot
 
             LogActivity("Application started. BotEngine initialized.");
 
-            // Initialize the knowledge base with arrays of randomized responses to make the bot feel natural
+            // StringComparer.OrdinalIgnoreCase ensures that "PASSWORD", "password", and "PassWord" all trigger the same response
             _topicResponses = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
             {
                 { "password", new List<string> { "Make sure to use strong, unique passwords for each account.", "Consider using a password manager." } },
@@ -49,68 +61,118 @@ namespace CybersecurityAwarenessBot
                 { "scam", new List<string> { "If an online deal looks too good to be true, it probably is.", "Never share your OTP with anyone." } },
                 { "privacy", new List<string> { "Check your social media settings to ensure your profile is private.", "Avoid sharing your real-time location." } }
             };
+
+            // Populate the quiz array
             LoadQuizQuestions();
         }
 
     
-        /// Appends an action to the volatile memory log. Caps the log at 10 items to save memory.
+        // Adds a timestamped entry to the session's activity log. 
+        // Caps the list at 10 items to prevent memory bloat during long sessions.
     
         private void LogActivity(string action)
         {
+            // Remove the oldest entry if we hit the limit
             if (_activityLog.Count >= 10) _activityLog.RemoveAt(0);
             _activityLog.Add($"[{DateTime.Now:HH:mm}] {action}");
         }
 
-        // Bridge methods exposing Database actions directly to the WPF UI Buttons
+        // --- DATABASE BRIDGE METHODS ---
+        // These methods allow the UI to interact with the database indirectly through the BotEngine
         public List<UserTaskModel> GetUserTasks() => _dbHelper.GetTaskModels();
         public void CompleteTask(int id) { _dbHelper.MarkTaskCompleteById(id); LogActivity($"Marked Task #{id} as complete via Dashboard."); }
         public void DeleteTask(int id) { _dbHelper.DeleteTaskById(id); LogActivity($"Deleted Task #{id} via Dashboard."); }
 
-        // Returns the active quiz question object so the UI can generate the correct buttons
+    
+        // Returns the active quiz question object if a quiz is running; otherwise, returns null.
+    
         public QuizQuestion? GetCurrentQuizQuestion() => IsQuizActive && _currentQuestionIndex < _quizQuestions.Count ? _quizQuestions[_currentQuestionIndex] : null;
 
     
-        /// Primary NLP processing function. Takes raw user string, matches via Regex, and determines response.
+        // The main Natural Language Processing (NLP) router. 
+        // Takes the raw user string, applies Regex rules, and determines the appropriate output.
     
+        // <param name="userInput">The raw text entered by the user.</param>
+        // <returns>The string response generated by the bot.</returns>
         public string ProcessInput(string? userInput)
         {
-            // Edge case handling for empty input
+            // Edge case: Ignore empty submissions unless we are in Quiz mode (which relies on button clicks)
             if (string.IsNullOrWhiteSpace(userInput) && !IsQuizActive) return "I didn't quite catch that.";
+
             string normalizedInput = userInput?.Trim() ?? "";
 
-            // If a quiz is running, override all normal logic and funnel input to the Quiz Handler
+            // If a quiz is currently running, hijack the input process and route it straight to the Quiz Handler
             if (_currentState == BotState.QuizActive) return HandleQuizInput(normalizedInput);
 
+            // Convert to lowercase to make regex and keyword matching easier
             string lowerInput = normalizedInput.ToLower();
 
-            // Check for Activity Log request
+            // Check if the user is asking to view their session history
             if (Regex.IsMatch(lowerInput, @"\b(activity log|what have you done)\b"))
             {
                 LogActivity("User requested to view the activity log.");
                 return GetActivityLog();
             }
 
-            // Check for Quiz start trigger
+            // Check if the user is triggering the quiz mini-game
             if (Regex.IsMatch(lowerInput, @"\b(start quiz|play game|take quiz)\b"))
             {
-                _currentState = BotState.QuizActive;
+                _currentState = BotState.QuizActive; // Lock the UI into quiz mode
                 _quizScore = 0;
                 _currentQuestionIndex = 0;
                 LogActivity("Cybersecurity Quiz started.");
                 return $"Awesome! Let's test your knowledge. I'll ask you {_quizQuestions.Count} questions.\n\nQuestion 1: {_quizQuestions[0].QuestionText}";
             }
 
-            // Complex Regex: Captures optional timeframes ("in 5 days") and the task title itself via capture groups
-            Match addTaskMatch = Regex.Match(lowerInput, @"(?:add task|set reminder|remind me)(?: in (\d+) days?)?(?: to)? (.+)");
-            if (addTaskMatch.Success)
+            // --- NLP REGEX PATTERN 1: Absolute Dates ---
+            // Example: "remind me to update my firewall on the 30th"
+            // Captures the task description in Group 1, and the numeric day in Group 2
+            Match absoluteDateMatch = Regex.Match(lowerInput, @"(?:add task|set reminder|remind me)(?: to)? (.+?) on the (\d{1,2})(?:st|nd|rd|th)");
+            if (absoluteDateMatch.Success)
             {
-                string daysString = addTaskMatch.Groups[1].Value;
-                string taskExtract = addTaskMatch.Groups[2].Value.Trim();
-
-                // Capitalize the first letter for neatness in the database
+                string taskExtract = absoluteDateMatch.Groups[1].Value.Trim();
+                // Capitalize the first letter for neatness in the UI
                 if (taskExtract.Length > 0) taskExtract = char.ToUpper(taskExtract[0]) + taskExtract.Substring(1);
 
-                // Default to 1 day if no specific timeframe was given
+                int targetDay = int.Parse(absoluteDateMatch.Groups[2].Value);
+                DateTime now = DateTime.Now;
+                DateTime reminderDate;
+
+                try
+                {
+                    // Attempt to map the requested day to the current year and month
+                    reminderDate = new DateTime(now.Year, now.Month, targetDay);
+
+                    // Smart adjustment: If that day has already passed this month, bump the reminder to next month
+                    if (reminderDate.Date <= now.Date)
+                    {
+                        reminderDate = reminderDate.AddMonths(1);
+                    }
+                }
+                catch (ArgumentOutOfRangeException)
+                {
+                    // Exception occurs if the user asks for a day that doesn't exist (e.g., February 31st)
+                    return "I couldn't set that reminder. Please check that the day you asked for actually exists in the current month!";
+                }
+
+                _dbHelper.AddUserTask(taskExtract, "Task added via smart chat.", reminderDate);
+                LogActivity($"Task added: '{taskExtract}'");
+                return $"Got it! I've added '{taskExtract}' and set your reminder for {reminderDate.ToShortDateString()}.";
+            }
+
+            // --- NLP REGEX PATTERN 2: Relative Dates ---
+            // Example: "remind me to check logs in 3 days"
+            // Captures the amount of days in Group 1 (optional), and the task description in Group 2
+            Match relativeDateMatch = Regex.Match(lowerInput, @"(?:add task|set reminder|remind me)(?: in (\d+) days?)?(?: to)? (.+)");
+            if (relativeDateMatch.Success)
+            {
+                string daysString = relativeDateMatch.Groups[1].Value;
+                string taskExtract = relativeDateMatch.Groups[2].Value.Trim();
+
+                // Capitalize the first letter
+                if (taskExtract.Length > 0) taskExtract = char.ToUpper(taskExtract[0]) + taskExtract.Substring(1);
+
+                // Default to tomorrow (1 day) if the user didn't specify a timeframe
                 int daysToAdd = string.IsNullOrEmpty(daysString) ? 1 : int.Parse(daysString);
                 DateTime reminderDate = DateTime.Now.AddDays(daysToAdd);
 
@@ -119,44 +181,50 @@ namespace CybersecurityAwarenessBot
                 return $"Got it! I've added '{taskExtract}' and set your reminder for {reminderDate.ToShortDateString()}.";
             }
 
-            // Intercept requests to view tasks and return a special token that the UI reads to open the Dashboard overlay
+            // --- UI CONTROL COMMAND ---
+            // Intercepts requests to view tasks and returns a hidden system token.
+            // The MainWindow.xaml.cs reads this token and opens the visual dashboard instead of printing text.
             if (Regex.IsMatch(lowerInput, @"\b(show|tell|what|view).*?(tasks|reminders)\b"))
             {
                 LogActivity("User opened the Interactive Task Dashboard.");
                 return "[DISPLAY_TASKS]";
             }
 
-            // Fallback: Check knowledge base dictionary for keyword matches
+            // --- KNOWLEDGE BASE FALLBACK ---
+            // If it wasn't a command, check if the user is asking about a known cybersecurity topic
             SentimentModifier? sentimentModifier = DetectSentiment(lowerInput);
             foreach (var topic in _topicResponses.Keys)
             {
                 if (lowerInput.Contains(topic))
                 {
-                    // Select a random response from the matched list
+                    // Select a random response from the array associated with the matched keyword
                     string baseResponse = _topicResponses[topic][_randomizer.Next(_topicResponses[topic].Count)];
                     LogActivity($"Provided info about '{topic}'.");
-                    // Apply delegate modification if sentiment was detected, otherwise return standard string
+
+                    // Apply sentiment modulation if the delegate exists (e.g., sound more urgent if user is hacked)
                     return sentimentModifier != null ? sentimentModifier(baseResponse) : baseResponse;
                 }
             }
 
-            // Absolute fallback if no regex or dictionary conditions are met
-            return "I'm not sure I understand. You can ask me to 'start quiz', 'remind me to [action]', 'show tasks', or ask about scams.";
+            // Absolute Fallback: Reached if no regex or keywords trigger
+            return "I'm not sure I understand. You can ask me to 'start quiz', 'remind me to [action] on the 15th', 'show tasks', or ask about scams.";
         }
 
     
-        /// Formats the volatile List memory into a readable string for the UI.
+        // Formats the volatile List memory into a readable multiline string.
     
         private string GetActivityLog()
         {
             if (_activityLog.Count == 0) return "I haven't done much yet today!";
+
             string logString = "Here's a summary of recent actions:\n";
             for (int i = 0; i < _activityLog.Count; i++) logString += $"{i + 1}. {_activityLog[i]}\n";
+
             return logString;
         }
 
     
-        /// Hardcoded population of the Quiz data structures.
+        // Hardcodes the cybersecurity knowledge base questions into memory.
     
         private void LoadQuizQuestions()
         {
@@ -177,43 +245,51 @@ namespace CybersecurityAwarenessBot
         }
 
     
-        /// Evaluates answers against the current QuizQuestion object and tracks scores.
+        // Evaluates a user's answer against the active QuizQuestion, increments the score, and returns formatting feedback.
     
+        // <param name="selectedAnswer">The raw text of the button the user clicked.</param>
         private string HandleQuizInput(string selectedAnswer)
         {
             var currentQuestion = _quizQuestions[_currentQuestionIndex];
-            // Uses OrdinalIgnoreCase to ensure correct matching regardless of UI capitalization
+
+            // Uses OrdinalIgnoreCase so we don't fail due to casing differences in the UI buttons
             bool isCorrect = selectedAnswer.Equals(currentQuestion.CorrectAnswer, StringComparison.OrdinalIgnoreCase);
 
+            // Construct the feedback string using a ternary operator
             string feedback = isCorrect ? "✅ Correct!" : $"❌ Incorrect. The right answer was: {currentQuestion.CorrectAnswer}.";
             feedback += $" {currentQuestion.Explanation}\n\n";
 
             if (isCorrect) _quizScore++;
             _currentQuestionIndex++;
 
-            // Check if quiz array is exhausted
+            // Detect if the array is exhausted (Quiz over)
             if (_currentQuestionIndex >= _quizQuestions.Count)
             {
-                _currentState = BotState.Normal; // Release the UI lock
+                _currentState = BotState.Normal; // Unlock the main chat input
                 return feedback + $"--- Quiz Finished! ---\nYou scored {_quizScore} out of {_quizQuestions.Count}.";
             }
-            // Proceed to next question
+
+            // Send the next question
             return feedback + $"Question {_currentQuestionIndex + 1}: {_quizQuestions[_currentQuestionIndex].QuestionText}";
         }
 
-        // Sentiment analysis placeholder. Can return null if no modifier is needed.
+        // Future placeholder: Returns a method that modifies a string based on detected sentiment.
         private SentimentModifier? DetectSentiment(string input) { return null; }
     }
 
 
-    /// Data structure holding the properties of a single quiz question.
-    /// Lists are used for Options to allow the WPF UI to dynamically render a variable number of buttons.
+    // A structured model representing a single quiz question.
 
     public class QuizQuestion
     {
         public string QuestionText { get; set; }
+
+        // Stored as a list so the WPF UI can dynamically render a variable amount of buttons
         public List<string> Options { get; set; }
+
         public string CorrectAnswer { get; set; }
+
+        // Contextual learning feedback provided to the user after they answer
         public string Explanation { get; set; }
 
         public QuizQuestion(string question, List<string> options, string answer, string explanation)

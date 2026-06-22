@@ -5,8 +5,8 @@ using MySql.Data.MySqlClient; // Requires MySql.Data NuGet package
 namespace CybersecurityAwarenessBot
 {
 
-    /// A structured model representing a single task. 
-    /// This allows the UI to easily bind to and display task properties.
+    // A structured model representing a single task. 
+    // This allows the UI to easily bind to and display task properties.
 
     public class UserTaskModel
     {
@@ -18,7 +18,7 @@ namespace CybersecurityAwarenessBot
     }
 
 
-    /// Handles all external database communications (CRUD Operations).
+    // Handles all external database communications (CRUD Operations).
 
     public class DatabaseHelper
     {
@@ -27,7 +27,7 @@ namespace CybersecurityAwarenessBot
         private readonly string _connectionString = "Server=localhost;Database=CybersecurityBotDB;Uid=root;Pwd=;";
 
     
-        /// Inserts a new task into the database. Uses Parameterized queries to prevent SQL Injection attacks.
+        // Inserts a new task into the database. Uses Parameterized queries to prevent SQL Injection attacks.
     
         public void AddUserTask(string title, string description, DateTime? reminderDate)
         {
@@ -55,7 +55,7 @@ namespace CybersecurityAwarenessBot
         }
 
     
-        /// Retrieves all tasks from the database and maps them to UserTaskModel objects.
+        // Retrieves all tasks from the database and maps them to UserTaskModel objects.
     
         public List<UserTaskModel> GetTaskModels()
         {
@@ -89,7 +89,7 @@ namespace CybersecurityAwarenessBot
         }
 
     
-        /// Updates a specific task's status to Completed based on its exact ID.
+        // Updates a specific task's status to Completed based on its exact ID.
     
         public void MarkTaskCompleteById(int taskId)
         {
@@ -110,7 +110,7 @@ namespace CybersecurityAwarenessBot
         }
 
     
-        /// Permanently removes a task from the database based on its exact ID.
+        // Permanently removes a task from the database based on its exact ID.
     
         public void DeleteTaskById(int taskId)
         {

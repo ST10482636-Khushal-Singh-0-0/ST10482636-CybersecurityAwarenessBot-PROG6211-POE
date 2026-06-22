@@ -54,17 +54,59 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
+
             <Grid Background="#333333" Margin="0,0,0,10">
                 <TextBlock Text="Task Manager" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center" Margin="15,10"/>
-
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,15,0">
                     <Button Content="+ Add Task" Background="#FF9C27B0" Margin="0,0,10,0" Style="{StaticResource InteractiveButton}" Click="BtnAddTask_Click"/>
                     <Button Content="- Close" Background="#FFF44336" Style="{StaticResource InteractiveButton}" Click="CloseTaskDashboard_Click"/>
                 </StackPanel>
             </Grid>
-            <ScrollViewer Grid.Row="1">
-                <StackPanel x:Name="InteractiveTaskList" Margin="15"/>
-            </ScrollViewer>
+
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <ScrollViewer Grid.Column="0">
+                    <StackPanel x:Name="InteractiveTaskList" Margin="15,0,15,15"/>
+                </ScrollViewer>
+
+                <Calendar x:Name="TaskCalendar" Grid.Column="1" SelectionMode="MultipleRange" SelectedDatesChanged="TaskCalendar_SelectedDatesChanged" Margin="0,0,15,15" Background="#252526" Foreground="White" BorderBrush="#555555" BorderThickness="1">
+                    <Calendar.Resources>
+                        <Style TargetType="CalendarDayButton">
+                            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                            <Setter Property="RenderTransform">
+                                <Setter.Value>
+                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Panel.ZIndex" Value="1"/>
+                                    <Trigger.EnterActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" To="1.3" Duration="0:0:0.1" />
+                                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" To="1.3" Duration="0:0:0.1" />
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </Trigger.EnterActions>
+                                    <Trigger.ExitActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" To="1" Duration="0:0:0.1" />
+                                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" To="1" Duration="0:0:0.1" />
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </Trigger.ExitActions>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Calendar.Resources>
+                </Calendar>
+            </Grid>
         </Grid>
 
         <WrapPanel x:Name="QuizAnswersPanel" Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10" Visibility="Collapsed"/>
