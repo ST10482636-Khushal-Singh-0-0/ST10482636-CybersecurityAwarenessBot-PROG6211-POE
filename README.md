@@ -9,7 +9,7 @@ Beyond just a chatbot, this application features a fully interactive task manage
 ## Features
 
 * **Retro-Arcade Animated UI:** A custom-styled, highly responsive interface featuring neon accents, sliding message animations, and custom UI templates.
-* **"Jarvis" Text-to-Speech:** Automatically reads out bot responses using `System.Speech.Synthesis`, creating a highly immersive, hands-free assistant experience.
+* **Text-to-Speech:** Automatically reads out bot responses using `System.Speech.Synthesis`, creating a highly immersive, hands-free assistant experience.
 * **Interactive Task Dashboard:** A built-in database-driven task manager. Add, complete, and delete cybersecurity-related tasks or reminders directly from a fluid UI overlay.
 * **Dynamic Cybersecurity Quiz:** Test your knowledge with a built-in multiple-choice quiz that temporarily locks standard input and dynamically generates clickable option buttons.
 * **Smart Natural Language Processing (NLP):** Uses Regular Expressions (Regex) to parse complex commands like *"remind me to update my firewall in 3 days"* and automatically formats them into database entries.
