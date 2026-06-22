@@ -60,7 +60,7 @@ namespace CybersecurityAwarenessBot
 | |___| |  | |___| |  | |   | |  | |  | |  | |__/ |   __| |___  | |   | |  | |   | |
 \_______/  \_______/  |_|   |_|  |_|  |_|  |_____/   |_______|  |_|   |_|  |_|   |_|
                                                   
- +++ MZANSI'S CYBERSECURITY AWARENESS ASSISTANT +++
+                +++ CYBERSECURITY AWARENESS ASSISTANT +++
 ";
             ChatOutput.Text += guardianArt + "\n===============================================================================\n\n";
         }

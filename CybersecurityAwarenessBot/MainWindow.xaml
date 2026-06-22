@@ -38,11 +38,11 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-            <Button x:Name="BtnStartQuiz" Style="{StaticResource InteractiveButton}" Content="🎮 Start Quiz" Width="120" Height="35" Margin="0,0,10,0" Background="#FF4CAF50" Click="QuickAction_Click"/>
-            <Button x:Name="BtnShowTasks" Style="{StaticResource InteractiveButton}" Content="📋 Show Tasks" Width="120" Height="35" Margin="0,0,10,0" Background="#FF2196F3" Click="QuickAction_Click"/>
-            <Button x:Name="BtnActivityLog" Style="{StaticResource InteractiveButton}" Content="📜 Activity Log" Width="120" Height="35" Margin="0,0,10,0" Background="#FFFF9800" Click="QuickAction_Click"/>
-            <Button x:Name="BtnClearChat" Style="{StaticResource InteractiveButton}" Content="🗑️ Clear Chat" Width="120" Height="35" Background="#FFF44336" Click="BtnClearChat_Click"/>
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10,0,0,5">
+            <Button x:Name="BtnStartQuiz" Style="{StaticResource InteractiveButton}" Content="Start Quiz" Width="190" Height="35" Margin="0,0,10,0" Background="#FF4CAF50" Click="QuickAction_Click"/>
+            <Button x:Name="BtnShowTasks" Style="{StaticResource InteractiveButton}" Content="Show Tasks" Width="190" Height="35" Margin="0,0,10,0" Background="#FF2196F3" Click="QuickAction_Click"/>
+            <Button x:Name="BtnActivityLog" Style="{StaticResource InteractiveButton}" Content="Activity Log" Width="190" Height="35" Margin="0,0,10,0" Background="#FFFF9800" Click="QuickAction_Click"/>
+            <Button x:Name="BtnClearChat" Style="{StaticResource InteractiveButton}" Content="Clear Chat" Width="190" Height="35" Background="#FFF44336" Click="BtnClearChat_Click"/>
         </StackPanel>
 
         <ScrollViewer x:Name="ChatScroll" Grid.Row="1" Margin="0,0,0,10" Background="#252526">
@@ -55,7 +55,7 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
             <Grid Background="#333333" Margin="0,0,0,10">
-                <TextBlock Text="📋 Interactive Task Manager" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center" Margin="15,10"/>
+                <TextBlock Text="Task Manager" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center" Margin="15,10"/>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,15,0">
                     <Button Content="➕ Add Task" Background="#FF9C27B0" Margin="0,0,10,0" Style="{StaticResource InteractiveButton}" Click="BtnAddTask_Click"/>
@@ -75,7 +75,7 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBox x:Name="UserInputBox" Grid.Column="0" Height="40" FontSize="16" Padding="5" VerticalContentAlignment="Center" KeyDown="UserInputBox_KeyDown"/>
-            <Button x:Name="SendButton" Style="{StaticResource InteractiveButton}" Grid.Column="1" Content="Send" Width="100" Height="40" Margin="10,0,0,0" FontSize="16" Background="#FF0027FF" Click="SendButton_Click" FontFamily="Arial Black"/>
+            <Button x:Name="SendButton" Style="{StaticResource InteractiveButton}" Grid.Column="1" Content="Ask" Width="100" Height="40" Margin="10,0,0,0" FontSize="16" Background="#FF0027FF" Click="SendButton_Click" FontFamily="Arial Black"/>
         </Grid>
     </Grid>
 </Window>
