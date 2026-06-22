@@ -1,4 +1,4 @@
-# Mzansi's Cybersecurity Awareness Assistant
+# Cybersecurity Awareness Assistant
 
 A sleek, interactive desktop Graphical User Interface (GUI) application built with C# and Windows Presentation Foundation (WPF). This virtual assistant is designed to educate users about common online threats—such as phishing, scams, and identity theft—with a specific focus on the South African digital landscape.
 
@@ -6,7 +6,7 @@ Beyond just a chatbot, this application features a fully interactive task manage
 
 ---
 
-## ✨ Features
+## Features
 
 * **Retro-Arcade Animated UI:** A custom-styled, highly responsive interface featuring neon accents, sliding message animations, and custom UI templates.
 * **"Jarvis" Text-to-Speech:** Automatically reads out bot responses using `System.Speech.Synthesis`, creating a highly immersive, hands-free assistant experience.
@@ -17,7 +17,7 @@ Beyond just a chatbot, this application features a fully interactive task manage
 
 ---
 
-## 🛠️ Technologies Used
+## Technologies Used
 
 * **Language:** C# 10.0+
 * **Framework:** .NET 8.0 / 10.0 (Windows Desktop Development)
@@ -27,7 +27,7 @@ Beyond just a chatbot, this application features a fully interactive task manage
 
 ---
 
-## ⚙️ Setup & Installation Instructions
+## Setup & Installation Instructions
 
 Follow these steps to get the application running on your local machine.
 
